@@ -1,0 +1,506 @@
+WEATHERPY
+Starter Code to Generate Random Geographic Coordinates and a List of Cities
+BOX 1
+# Dependencies and Setup
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import requests
+import time
+import sys
+from scipy.stats import linregress
+from datetime import datetime
+
+sys.path.append('../api_keys.py')
+
+# Import the OpenWeatherMap API key
+from api_keys import weather_api_key
+
+# Import citipy to determine the cities based on latitude and longitude
+from citipy import citipy
+
+Generate the Cities List by Using the citipy Library
+
+# Empty list for holding the latitude and longitude combinations
+lat_lngs = []
+
+# Empty list for holding the cities names
+cities = []
+
+# Range of latitudes and longitudes
+lat_range = (-90, 90)
+lng_range = (-180, 180)
+
+# Create a set of random lat and lng combinations
+lats = np.random.uniform(lat_range[0], lat_range[1], size=1500)
+lngs = np.random.uniform(lng_range[0], lng_range[1], size=1500)
+lat_lngs = zip(lats, lngs)
+
+# Identify nearest city for each lat, lng combination
+for lat_lng in lat_lngs:
+    city = citipy.nearest_city(lat_lng[0], lat_lng[1]).city_name
+    
+    # If the city is unique, then add it to a our cities list
+    if city not in cities:
+        cities.append(city)
+
+# Print the city count to confirm sufficient count
+print(f"Number of cities in the list: {len(cities)}")
+Number of cities in the list: 610
+
+Requirement 1: Create Plots to Showcase the Relationship Between Weather Variables and Latitude
+Use the OpenWeatherMap API to retrieve weather data from the cities list generated in the started code
+
+# Set the API base URL
+url = "http://api.openweathermap.org/data/2.5/weather?"
+units = "imperial"
+
+# Define an empty list to fetch the weather data for each city
+city_data = []
+
+# Print to logger
+print("Beginning Data Retrieval     ")
+print("-----------------------------")
+
+# Create counters
+record_count = 1
+set_count = 1
+
+# Loop through all the cities in our list to fetch weather data
+for i, city in enumerate(cities):
+        
+    # Group cities in sets of 50 for logging purposes
+    if (i % 50 == 0 and i >= 50):
+        set_count += 1
+        record_count = 0
+
+    # Create endpoint URL with each city
+    city_url = f"{url}q={city}&appid={weather_api_key}&units={units}"
+    
+    # Log the url, record, and set numbers
+    print("Processing Record %s of Set %s | %s" % (record_count, set_count, city))
+
+    # Add 1 to the record count
+    record_count += 1
+
+    # Run an API request for each of the cities
+    try:
+        # Parse the JSON and retrieve data
+        city_weather = requests.get(city_url).json()
+      
+        # Parse out latitude, longitude, max temp, humidity, cloudiness, wind speed, country, and date
+        city_lat = city_weather["coord"]["lat"]
+        city_lng = city_weather["coord"]["lon"]
+        city_max_temp = city_weather["main"]["temp_max"]
+        city_humidity = city_weather["main"]["humidity"]
+        city_clouds = city_weather["clouds"]["all"]
+        city_wind = city_weather["wind"]["speed"]
+        city_country = city_weather["sys"]["country"]
+        city_date = city_weather["dt"]
+        
+        # format the date
+        date_format = datetime.utcfromtimestamp(city_date).strftime('%Y-%m-%d %H:%M:%S')
+
+        # Append the City information into city_data list
+        city_data.append({"City": city, 
+                          "Lat": city_lat, 
+                          "Lng": city_lng, 
+                          "Max Temp": city_max_temp,
+                          "Humidity": city_humidity,
+                          "Cloudiness": city_clouds,
+                          "Wind Speed": city_wind,
+                          "Country": city_country,
+                          "Date": city_date})
+
+    # If an error is experienced, skip the city
+    except Exception as e:
+        print(f"An error occurred for {city}: {str(e)}.Skipping")
+        #print("City not found. Skipping...")
+        pass
+              
+# Indicate that Data Loading is complete 
+print("-----------------------------")
+print("Data Retrieval Complete      ")
+print("-----------------------------")
+
+# Convert the cities weather data into a Pandas DataFrame
+city_data_df = pd.DataFrame(city_data)
+
+# Show Record Count
+city_data_df.count()
+City          586
+Lat           586
+Lng           586
+Max Temp      586
+Humidity      586
+Cloudiness    586
+Wind Speed    586
+Country       586
+Date          586
+dtype: int64
+#Convert the date from Unix to yyyy-mm-dd
+city_data_df['Date']=pd.to_datetime(city_data_df['Date'], unit= 's').dt.date 
+
+# Display sample data=
+city_data_df.head()
+
+# Export the City_Data into a csv
+city_data_df.to_csv("output_data/cities.csv", index_label="City_ID")
+# Read saved data
+city_data_df = pd.read_csv("output_data/cities.csv", index_col="City_ID")
+
+# Display sample data
+city_data_df.head()
+
+Create the Scatter Plots Requested
+
+Latitude Vs. Temperature
+# Build scatter plot for latitude vs. temperature
+
+# Get the date from the first city in your data 
+date = city_data_df.loc[0,"Date"]
+
+plt.figure(figsize=(8, 6))
+plt.scatter(city_data_df["Lat"], city_data_df["Max Temp"], edgecolors="black", alpha=0.75)
+
+# Incorporate the other graph properties
+plt.title(f"City Latitude vs. Max Temperature ({date})")
+plt.xlabel("Latitude")
+plt.ylabel("Max Temperature (°F)")
+plt.grid(True)
+
+# Save the figure
+plt.savefig("output_data/Fig1.png")
+
+# Show plot
+plt.show()
+
+Latitude Vs. Humidity
+# Build the scatter plots for latitude vs. humidity
+date = city_data_df.loc[0,"Date"]
+
+plt.figure(figsize=(8, 6))
+plt.scatter(city_data_df["Lat"], city_data_df["Humidity"], edgecolors="black", alpha=0.75)
+
+# Incorporate the other graph properties
+plt.title(f"City Humidity vs. Max Temperature ({date})")
+plt.xlabel("Latitude")
+plt.ylabel("Humidity")
+plt.grid(True)
+
+# Save the figure
+plt.savefig("output_data/Fig2.png")
+
+# Show plot
+plt.show()
+
+Latitude Vs. Cloudiness
+# Build the scatter plots for latitude vs. cloudiness
+
+date = city_data_df.loc[0,"Date"]
+
+plt.figure(figsize=(8, 6))
+plt.scatter(city_data_df["Lat"], city_data_df["Cloudiness"], edgecolors="black", alpha=0.75)
+
+# Incorporate the other graph properties
+plt.title(f"City Cloudiness vs. Max Temperature ({date})")
+plt.xlabel("Latitude")
+plt.ylabel("Cloudiness")
+plt.grid(True)
+
+# Save the figure
+plt.savefig("output_data/Fig3.png")
+
+# Show plot
+plt.show()
+
+Latitude vs. Wind Speed Plot
+# Build the scatter plots for latitude vs. wind speed
+date = city_data_df.loc[0,"Date"]
+
+plt.figure(figsize=(8, 6))
+plt.scatter(city_data_df["Lat"], city_data_df["Wind Speed"], edgecolors="black", alpha=0.75)
+
+# Incorporate the other graph properties
+plt.title(f"City Wind Speed vs. Max Temperature ({date})")
+plt.xlabel("Latitude")
+plt.ylabel("Wind Speed")
+plt.grid(True)
+
+# Save the figure
+plt.savefig("output_data/Fig4.png")
+
+# Show plot
+plt.show()
+
+Requirement 2: Compute Linear Regression for Each Relationship
+
+# Define a function to create Linear Regression plots
+
+def plot_linear_regression(x, y, xlabel, ylabel, title, text_coordinates):
+    # Perform linear regression
+    (slope, intercept, rvalue, pvalue, stderr) = linregress(x, y)
+
+    # Calculate the regression values
+    regress_values = x * slope + intercept
+
+    # Create the linear regression line equation
+    line_eq = "y = " + str(round(slope, 2)) + "x + " + str(round(intercept, 2))
+
+    # Create the scatter plot
+    plt.scatter(x, y, edgecolors="black", alpha=0.75)
+    
+    # Plot the regression line
+    plt.plot(x, regress_values, "r-")
+
+    # Annotate the linear regression equation and correlation coefficient
+    plt.annotate(line_eq, text_coordinates, fontsize=15, color="black")
+    plt.annotate(f"r-squared: {round(rvalue**2, 2)}", (min(x), min(y)), fontsize=15, color="black")
+
+    # Set the labels and title
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+
+# Linear Regression for lat vs max temp
+plot_linear_regression(city_data_df["Lat"], city_data_df["Max Temp"], "Latitude", "Max Temperature (°F)", "City Latitude vs. Max Temperature", (-55, -10))
+plt.show()
+
+# Linear Regression for lat vs humidity
+plot_linear_regression(city_data_df["Lat"], city_data_df["Humidity"], "Latitude", "Humidity", "City Latitude vs. Humidity", (25, 0))
+plt.show()
+
+# Linear Regression for lat vs cloudiness
+plot_linear_regression(city_data_df["Lat"], city_data_df["Cloudiness"], "Latitude", "Cloudiness", "City Latitude vs. Cloudiness", (-55,42))
+plt.show()
+
+# Linear Regression for lat vs Wind Speed
+plot_linear_regression(city_data_df["Lat"], city_data_df["Wind Speed"], "Latitude", "Wind Speed", "City Latitude vs. Wind Speed", (-55,35))
+plt.show()
+
+# Create a DataFrame with the Northern Hemisphere data (Latitude >= 0)
+northern_hemi_df = city_data_df[city_data_df['Lat'] >= 0]
+
+# Display sample data
+northern_hemi_df.head()
+
+# Create a DataFrame with the Southern Hemisphere data (Latitude < 0)
+southern_hemi_df = city_data_df[city_data_df['Lat'] < 0]
+
+# Display sample data
+southern_hemi_df.head()
+
+Temperature vs. Latitude Linear Regression Plot
+
+# Define a function to create Linear Regression by hemisphere
+
+def perform_linear_regression(hemisphere_df, xlabel, ylabel, title,text_coordinates):
+    # Perform linear regression
+    (slope, intercept, rvalue, pvalue, stderr) = linregress(hemisphere_df['Lat'], hemisphere_df[ylabel])
+
+    # Calculate the regression values
+    regress_values = hemisphere_df['Lat'] * slope + intercept
+
+    # Create the linear regression line equation
+    line_eq = "y = " + str(round(slope, 2)) + "x + " + str(round(intercept, 2))
+
+    # Create the scatter plot
+    plt.scatter(hemisphere_df['Lat'], hemisphere_df[ylabel], edgecolors="black", alpha=0.75)
+    
+    # Plot the regression line
+    plt.plot(hemisphere_df['Lat'], regress_values, "r-")
+
+    # Annotate the linear regression equation and correlation coefficient
+    plt.annotate(line_eq, (text_coordinates[0], text_coordinates[1] + 50), fontsize=15, color="black")
+    plt.annotate(f"r-squared: {round(rvalue**2, 2)}", (min(hemisphere_df['Lat']), min(hemisphere_df[ylabel])), fontsize=15, color="black")
+
+    # Set the labels and title
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    
+# Linear regression on Northern Hemisphere
+perform_linear_regression(northern_hemi_df, 'Latitude', 'Max Temp', 'Northern Hemisphere - Max Temp (F) vs. Latitude', (0,-60))
+
+# Linear regression on Southern Hemisphere
+perform_linear_regression(southern_hemi_df, 'Latitude', 'Max Temp', 'Southern Hemisphere - Max Temp (F) vs. Latitude', (-25,-10))
+
+Discussion about the linear relationship: The Northern hemisphere, which starts at 0° and increases in latitude toward the North Pole. The correlation between temperature and latitude makes sense. The left side of the plot indicates the equator, where the temperature is high, as the regression line moves to the right or toward the North Pole the temperature decreases.
+
+This correlation is true for the Southern hemisphere but only reversed. This is shown in the next plot. The Southern hemisphere starts at a latitude of 0° and decreases in latitude toward the South Pole. The plot shows the lower temperatures on the left side, and increasing as the regression line moves to the right or towards the equator.
+
+Humidity vs. Latitude Linear Regression Plot
+# Northern Hemisphere
+perform_linear_regression(northern_hemi_df, 'Latitude', 'Humidity', 'Northern Hemisphere - Humidity vs. Latitude', (40,-40))
+
+# Southern Hemisphere
+perform_linear_regression(southern_hemi_df, 'Latitude', 'Humidity', 'Southern Hemisphere - Humidity vs. Latitude', (-25,-50))
+
+Discussion about the linear relationship: Looking at the regression lines for humidity vs latitude. Both plots have a very low r-squared value, with the Southern hemisphere having a 0 r-squared value. The correlation in the Southern hemisphere makes sense as that region has the impression of being humid. I’m surprised to see a high correlation in the Northern hemisphere. As the regression line approaches the North Pole, the humidity is close to 100%. The North Pole is not a place one would think to be very humid.
+
+Cloudiness vs. Latitude Linear Regression Plot
+# Northern Hemisphere
+perform_linear_regression(northern_hemi_df, 'Latitude', 'Cloudiness', 'Northern Hemisphere - Cloudiness vs. Latitude', (40,0))
+
+# Southern Hemisphere
+perform_linear_regression(southern_hemi_df, 'Latitude', 'Cloudiness', 'Southern Hemisphere - Cloudiness vs. Latitude', (-25,-50))
+
+Discussion about the linear relationship: Cloudiness vs latitude has some interesting correlations. The equator is almost 100% cloudy as is the North Pole, however the South Pole is almost always clear.
+
+Wind Speed vs. Latitude Linear Regression Plot
+# Northern Hemisphere
+perform_linear_regression(northern_hemi_df, 'Latitude', 'Wind Speed', 'Northern Hemisphere - Wind  vs. SpeedLatitude', (0,-15))
+
+# Southern Hemisphere
+perform_linear_regression(southern_hemi_df, 'Latitude', 'Wind Speed', 'Southern Hemisphere - Wind Speed vs. Latitude', (-55,-46))
+
+Discussion about the linear relationship: Wind Speed plotted against latitude shows the Northern hemisphere having tight range of wind speed, with the Southern hemisphere having more scattered values. Additionally, the Southern hemisphere appears to have more points of higher wind speed as opposed to the Northern hemisphere, where the range greatly under 10.
+
+
+
+VacationPy
+
+Starter Code to Import Libraries and Load the Weather and Coordinates Data
+
+# Dependencies and Setup
+import hvplot.pandas
+import pandas as pd
+import requests
+import sys
+
+sys.path.append('../api_keys.py')
+
+# Import API key
+from api_keys import geoapify_key
+# Load the CSV file created in Part 1 into a Pandas DataFrame
+city_data_df = pd.read_csv("../WeatherPy.ipynb/output_data/cities.csv")
+
+# Display sample data
+city_data_df.head()
+
+Step 1: Create a map that displays a point for every city in the city_data_df DataFrame. The size of the point should be the humidity in each city.
+
+%%capture --no-display
+
+# Configure the map plot
+map_plot = city_data_df.hvplot.points(
+    x='Lng',
+    y='Lat',
+    geo =True,
+    tiles = "OSM",
+    c='Humidity',
+    size='Humidity',  
+    cmap='Greens',  
+    hover_cols=['City', 'Humidity'],
+    title='City Humidity',
+    xlabel='Longitude',  
+    ylabel='Latitude',   
+    frame_width=800,
+    frame_height=600,
+)
+
+# Show the map plot
+map_plot
+
+Step 2: Narrow down the city_data_df DataFrame to find your ideal weather condition
+
+# Narrow down cities that fit criteria and drop any results with null values
+# Ideal_Conditions:
+# Temperature range 60-90 F
+# Humidity <50%
+# Cloudiness <10%
+
+ideal_conditions_df = city_data_df[(city_data_df['Max Temp'] >= 60) & (city_data_df['Max Temp'] <= 90) &
+                                  (city_data_df['Humidity'] < 50) &
+                                  (city_data_df['Cloudiness'] < 10)]
+
+# Drop any rows with null values
+ideal_conditions_df = ideal_conditions_df.dropna()
+
+# Display sample data
+ideal_conditions_df
+
+Step 3: Create a new DataFrame called hotel_df.
+
+# Use the Pandas copy function to create DataFrame called hotel_df to store the city, country, coordinates, and humidity
+hotel_df = ideal_conditions_df.copy()
+
+# Add an empty column, "Hotel Name," to the DataFrame so you can store the hotel found using the Geoapify API
+hotel_df["Hotel Name"] = ""
+
+# Display sample data
+hotel_df
+
+Step 4: For each city, use the Geoapify API to find the first hotel located within 10,000 metres of your coordinates.
+
+# Set parameters to search for a hotel
+radius = 10000
+params = {
+    "radius": radius,
+    "categories": "accommodation.hotel",  
+    "limit": 1,  
+    "format": "json",
+    "apiKey": geoapify_key
+}
+
+# Print a message to follow up the hotel search
+print("Starting hotel search")
+
+# Iterate through the hotel_df DataFrame
+for index, row in hotel_df.iterrows():
+    # get latitude, longitude from the DataFrame
+    latitude = row["Lat"]
+    longitude = row["Lng"]
+    
+    # Add filter and bias parameters with the current city's latitude and longitude to the params dictionary
+    params["filter"] = f"circle:{longitude},{latitude},{radius}"
+    params["bias"] = f"proximity:{longitude},{latitude}"
+    
+    # Set base URL
+    base_url = "https://api.geoapify.com/v2/places"
+
+    # Make and API request using the params dictionaty
+    name_address = requests.get(base_url, params=params).json()
+    
+    name_address = requests.get(base_url, params=params).json()
+    print(name_address)
+    
+    # Convert the API response to JSON format
+    #name_address = # YOUR CODE HERE
+    
+    # Grab the first hotel from the results and store the name in the hotel_df DataFrame
+    try:
+        hotel_df.loc[index, "Hotel Name"] = name_address["features"][0]["properties"]["name"]
+    except (KeyError, IndexError):
+        # If no hotel is found, set the hotel name as "No hotel found".
+        hotel_df.loc[index, "Hotel Name"] = "No hotel found"
+        
+    # Log the search results
+    print(f"{hotel_df.loc[index, 'City']} - nearest hotel: {hotel_df.loc[index, 'Hotel Name']}")
+
+# Display sample data
+hotel_df
+
+Step 5: Add the hotel name and the country as additional information in the hover message for each city in the map.
+
+%%capture --no-display
+
+# Configure the map plot
+map_plot = hotel_df.hvplot.points(
+    x='Lng',
+    y='Lat',
+    geo=True,
+    tiles="OSM",
+    c='Humidity',
+    size='Humidity',
+    cmap='Greens',
+    hover_cols=['City', 'Humidity', 'Hotel Name', 'Country'],  # Include Hotel Name and Country in the hover message
+    title='"Ideal Conditions" w/hotel information',
+    frame_width=800,
+    frame_height=600,
+)
+
+# Display the map
+map_plot
+ 
+ 
